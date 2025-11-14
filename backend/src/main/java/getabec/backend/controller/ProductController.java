@@ -24,4 +24,12 @@ public class ProductController {
     public ResponseEntity<Product> create(@Valid @RequestBody Product p) {
         return ResponseEntity.ok(repo.save(p));
     }
+
+    @GetMapping("/{slug}")
+    public ResponseEntity<?> bySlug(@PathVariable String slug) {
+        return repo.findBySlug(slug)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
 }
