@@ -14,3 +14,28 @@ spring:
       hibernate.jdbc.time_zone: UTC
   flyway:
     locations: classpath:db/migration
+
+  mail:
+    host: mailhog
+    port: 1025
+    username: ""
+    password: ""
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
+jwt:
+  issuer: ecommerce.local
+  access-token-ttl-minutes: 15
+  refresh-token-ttl-days: 7
+  secret: "7gH98sdf0asd98as0df98ASD09asd890asdASD890asd90as"
+
+mail:
+  from: "no-reply@ecommerce.local"
+
+oauth:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+  facebook:
+    app-id: ${FB_APP_ID:your-facebook-app-id}
+    app-secret: ${FB_APP_SECRET:your-facebook-app-secret}

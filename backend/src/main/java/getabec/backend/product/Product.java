@@ -1,4 +1,4 @@
-package getabec.backend.entity;
+package getabec.backend.product;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;

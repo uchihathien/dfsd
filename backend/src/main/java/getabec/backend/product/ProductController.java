@@ -1,7 +1,5 @@
-package getabec.backend.controller;
+package getabec.backend.product;
 
-import getabec.backend.entity.Product;
-import getabec.backend.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +22,6 @@ public class ProductController {
     public ResponseEntity<Product> create(@Valid @RequestBody Product p) {
         return ResponseEntity.ok(repo.save(p));
     }
-
     @GetMapping("/{slug}")
     public ResponseEntity<?> bySlug(@PathVariable String slug) {
         return repo.findBySlug(slug)
