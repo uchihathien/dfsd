@@ -1,5 +1,6 @@
 package getabec.backend.auth;
 
+import getabec.backend.auth.dto.AuthResponse;
 import getabec.backend.auth.dto.LoginRequest;
 import getabec.backend.auth.dto.RegisterRequest;
 import getabec.backend.auth.dto.TokenResponse;
@@ -14,7 +15,7 @@ import java.util.Map;
 
 // auth/AuthController.java
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping({"/api/auth", "/auth"})
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
@@ -28,8 +29,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public TokenResponse login(@Valid @RequestBody LoginRequest req) {
-        return authService.login(req);  // Sai -> ném InvalidCredentialsException -> 401
+    public AuthResponse login(@Valid @RequestBody LoginRequest req) {
+        return authService.login(req);
     }
 
     @PostMapping("/refresh")

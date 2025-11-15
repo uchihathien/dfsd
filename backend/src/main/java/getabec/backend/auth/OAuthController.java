@@ -6,6 +6,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import getabec.backend.auth.dto.TokenResponse;
+import getabec.backend.auth.JwtUtil;
 import getabec.backend.user.User;
 import getabec.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ import java.util.Map;
 public class OAuthController {
     private final UserRepository userRepo;
     private final OAuthAccountRepository oauthRepo;
-    private final JwtService jwt;
+    private final JwtUtil jwtUtil;
 
     @Value("${oauth.google.client-id}") private String googleClientId;
 
@@ -67,7 +68,7 @@ public class OAuthController {
         }
 
         var ud = new org.springframework.security.core.userdetails.User(u.getEmail(), "", List.of(new SimpleGrantedAuthority("ROLE_"+u.getRole())));
-        return new TokenResponse(jwt.generateAccessToken(ud), jwt.generateRefreshToken(ud));
+        return new TokenResponse(jwtUtil.generateAccessToken(ud), jwtUtil.generateRefreshToken(ud));
     }
 
     // auth/OAuthController.java (Facebook)
@@ -124,7 +125,7 @@ public class OAuthController {
         }
 
         var ud = new org.springframework.security.core.userdetails.User(u.getEmail(), "", List.of(new SimpleGrantedAuthority("ROLE_"+u.getRole())));
-        return new TokenResponse(jwt.generateAccessToken(ud), jwt.generateRefreshToken(ud));
+        return new TokenResponse(jwtUtil.generateAccessToken(ud), jwtUtil.generateRefreshToken(ud));
     }
 
 }

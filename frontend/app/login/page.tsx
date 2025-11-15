@@ -34,14 +34,11 @@ export default function LoginPage() {
                 body: JSON.stringify({ email, password }),
             });
 
-            // Nếu login thất bại
-            if (!res.ok) {
-                let message = "";
-                try {
-                    message = await res.text();
-                } catch (_) {}
+            const result = await res.json().catch(() => null);
 
-                setError(message || "Đăng nhập thất bại");
+            if (!res.ok) {
+                const message = result?.error || "Đăng nhập thất bại";
+                setError(message);
                 return;
             }
 
@@ -49,8 +46,12 @@ export default function LoginPage() {
             router.push(next);
             router.refresh();
 
-        } catch (err: any) {
-            setError(err?.message || "Lỗi kết nối server");
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError("Lỗi kết nối server");
+            }
         } finally {
             setLoading(false);
         }
