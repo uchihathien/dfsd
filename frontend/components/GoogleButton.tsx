@@ -1,73 +1,122 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
 
 export default function GoogleButton() {
-    const router = useRouter();
-    const queryClient = useQueryClient();
+    const [sdkReady, setSdkReady] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleCredentialResponse = async (resp: { credential: string }) => {
-        const idToken = resp.credential;
-        if (!idToken) return alert("No ID token received");
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+    // callback khi Google trả về credential (id_token)
+    const handleCredentialResponse = useCallback(async (response: any) => {
+        const idToken = response?.credential as string | undefined;
+        if (!idToken) {
+            setError("Không lấy được id_token từ Google");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
 
         try {
-            const r = await fetch("/bff/auth/oauth/google", {
+            const res = await fetch("/bff/auth/oauth/google", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
                 body: JSON.stringify({ idToken }),
             });
 
-            if (r.ok) {
+            const data = await res.json().catch(() => ({}));
 
-                // 🔥 1) Update lại user ngay lập tức
-                await queryClient.invalidateQueries({ queryKey: ["me"] });
-
-                // 🔥 2) Điều hướng UI
-                router.replace("/");
-            } else {
-                const data = await r.json();
-                alert(data.message || "Google login failed");
+            if (!res.ok) {
+                setError((data && (data.error as string)) || "Đăng nhập Google thất bại");
+                return;
             }
-        } catch (err) {
-            console.error(err);
-            alert("Google login error");
-        }
-    };
 
-    useEffect(() => {
-        const initialize = () => {
-            if (!window.google) return;
-
-            window.google.accounts.id.initialize({
-                client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
-                callback: handleCredentialResponse,
-            });
-
-            const btnContainer = document.getElementById("gbtn");
-            if (btnContainer) {
-                window.google.accounts.id.renderButton(btnContainer, {
-                    theme: "outline",
-                    size: "large",
-                });
-            }
-        };
-
-        if (typeof window !== "undefined") {
-            setTimeout(initialize, 300);
+            // Đăng nhập thành công – redirect tuỳ bạn
+            window.location.href = "/";
+        } catch (e: any) {
+            setError(e?.message || "Có lỗi kết nối đến server");
+        } finally {
+            setLoading(false);
         }
     }, []);
 
+    // Khi SDK load xong -> init Google + render nút
+    useEffect(() => {
+        if (!sdkReady) return;
+        if (typeof window === "undefined") return;
+
+        const google = (window as any).google;
+        if (!google) return;
+
+        if (!clientId) {
+            setError("Thiếu NEXT_PUBLIC_GOOGLE_CLIENT_ID");
+            return;
+        }
+
+        try {
+            google.accounts.id.initialize({
+                client_id: clientId,
+                callback: handleCredentialResponse,
+            });
+
+            const container = document.getElementById(
+                "google-signin-btn"
+            ) as HTMLElement | null;
+
+            if (!container) {
+                console.warn("Không tìm thấy #google-signin-btn để render nút Google");
+                return;
+            }
+
+            // ép kiểu as any để tránh lỗi TS về option 'type', 'text'...
+            google.accounts.id.renderButton(
+                container,
+                {
+                    type: "standard",
+                    theme: "outline",
+                    size: "large",
+                    text: "continue_with",
+                    shape: "rectangular",
+                    width: 320,
+                } as any
+            );
+        } catch (err) {
+            console.error("Google init error:", err);
+            setError("Không khởi tạo được nút Google");
+        }
+    }, [sdkReady, clientId, handleCredentialResponse]);
+
     return (
         <>
+            {/* SDK Google Identity Services – dùng được cho Next 15/16 */}
             <Script
                 src="https://accounts.google.com/gsi/client"
-                strategy="afterInteractive"
+                async
+                defer
+                onLoad={() => setSdkReady(true)}
+                onError={() => setError("Không tải được SDK Google")}
             />
-            <div id="gbtn"></div>
+
+            <div className="space-y-2">
+                {/* Container để Google render nút */}
+                <div id="google-signin-btn" className="flex justify-center" />
+
+                {loading && (
+                    <p className="text-xs text-gray-500 text-center">
+                        Đang đăng nhập với Google...
+                    </p>
+                )}
+                {error && (
+                    <p className="text-xs text-red-600 text-center whitespace-pre-line">
+                        {error}
+                    </p>
+                )}
+            </div>
         </>
     );
 }

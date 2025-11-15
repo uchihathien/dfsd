@@ -1,26 +1,14 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
-
 export default function LogoutButton() {
-    const qc = useQueryClient();
-
-    const doLogout = async () => {
-        await fetch("/bff/auth/logout", {
-            method: "POST",
-            credentials: "include",
-        });
-
-        // Cập nhật header ngay lập tức
-        qc.invalidateQueries({ queryKey: ["me"] });
-    };
+    async function logout() {
+        await fetch("/bff/auth/logout", { method: "POST" });
+        location.reload();
+    }
 
     return (
-        <button
-            onClick={doLogout}
-            className="text-red-600 text-sm hover:underline"
-        >
-            Đăng xuất
+        <button className="text-red-600" onClick={logout}>
+            Logout
         </button>
     );
 }

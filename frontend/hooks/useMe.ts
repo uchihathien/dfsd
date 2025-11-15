@@ -6,19 +6,12 @@ export function useMe() {
     return useQuery({
         queryKey: ["me"],
         queryFn: async () => {
-            const r = await fetch("/bff/auth/me", {
+            const res = await fetch("/bff/auth/me", {
                 credentials: "include",
-                cache: "no-store",
             });
 
-            if (r.status === 401) return null; // chưa đăng nhập
-            if (!r.ok) throw new Error("Failed to load user");
-
-            return r.json();
+            if (!res.ok) return null;
+            return res.json();
         },
-        staleTime: 0,
-        refetchOnMount: true,
-        refetchOnReconnect: true,
-        refetchOnWindowFocus: false,
     });
 }

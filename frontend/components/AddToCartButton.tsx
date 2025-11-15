@@ -1,46 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 
-export function AddToCartButton({
-                                    variantId,
-                                    disabled,
-                                }: {
-    variantId: number;
-    disabled?: boolean;
-}) {
+export default function AddToCartButton({ variantId }: { variantId: number }) {
     const [loading, setLoading] = useState(false);
+    const [ok, setOk] = useState(false);
+    const [err, setErr] = useState<string | null>(null);
 
-    async function onAdd() {
+    const handleAdd = async (e: FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setErr(null);
+        setOk(false);
         try {
-            setLoading(true);
             const res = await fetch("/bff/cart/items", {
                 method: "POST",
                 headers: { "content-type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({ variantId, quantity: 1 }),
-                credentials: "include",                // 👈 để trình duyệt gửi cookie & nhận set-cookie
-
             });
             if (!res.ok) {
-                const t = await res.text();
-                throw new Error(t || `Add to cart failed: ${res.status}`);
+                const msg = await res.text().catch(() => "");
+                setErr(msg || "Thêm vào giỏ thất bại");
+            } else {
+                setOk(true);
             }
-            // đơn giản: thông báo nhỏ
-            alert("Đã thêm vào giỏ!");
         } catch (e: any) {
-            alert(e?.message ?? "Lỗi không xác định");
+            setErr(e.message || "Có lỗi xảy ra");
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     return (
-        <button
-            onClick={onAdd}
-            disabled={disabled || loading}
-            className="border px-3 py-1 rounded text-sm"
-        >
-            {loading ? "Đang thêm..." : disabled ? "Hết hàng" : "Thêm vào giỏ"}
-        </button>
+        <div className="space-y-1">
+            <button
+                onClick={handleAdd}
+                disabled={loading}
+                className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+            >
+                {loading ? "Đang thêm..." : "Thêm vào giỏ"}
+            </button>
+            {ok && <p className="text-xs text-green-600">Đã thêm vào giỏ</p>}
+            {err && <p className="text-xs text-red-600">{err}</p>}
+        </div>
     );
 }

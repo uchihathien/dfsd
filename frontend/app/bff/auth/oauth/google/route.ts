@@ -1,4 +1,7 @@
+// app/bff/auth/oauth/google/route.ts
 import { NextRequest, NextResponse } from "next/server";
+
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 
 export async function POST(req: NextRequest) {
     try {
@@ -8,28 +11,37 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "ID_TOKEN_REQUIRED" }, { status: 400 });
         }
 
-        const r = await fetch(`${process.env.BACKEND_URL}/api/auth/oauth/google`, {
+        const r = await fetch(`${BACKEND_URL}/api/auth/oauth/google`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ idToken }),
             cache: "no-store",
         });
 
-        const data = await r.json();
+        const data = await r.json().catch(() => ({}));
 
-        if (!r.ok) return NextResponse.json(data, { status: r.status });
+        if (!r.ok) {
+            return NextResponse.json(data, { status: r.status });
+        }
 
+        // Backend trả { accessToken, refreshToken }
         const res = NextResponse.json({ ok: true });
-        res.cookies.set("access_token", data.accessToken, {
-            httpOnly: true,
-            sameSite: "lax",
-            path: "/",
-        });
-        res.cookies.set("refresh_token", data.refreshToken, {
-            httpOnly: true,
-            sameSite: "lax",
-            path: "/",
-        });
+
+        // Lưu token ở HttpOnly cookie
+        if (data.accessToken) {
+            res.cookies.set("access_token", data.accessToken, {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+            });
+        }
+        if (data.refreshToken) {
+            res.cookies.set("refresh_token", data.refreshToken, {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+            });
+        }
 
         return res;
     } catch (err) {

@@ -1,21 +1,15 @@
-// frontend/app/bff/cart/items/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { API_BASE } from "@/lib/api";
-
-export const dynamic = "force-dynamic";
+import { backendFetch } from "@/lib/api";
 
 export async function POST(req: NextRequest) {
     const body = await req.text();
 
-    const res = await fetch(`${API_BASE}/api/cart/items`, {
+    const res = await backendFetch("/api/auth/login", {
         method: "POST",
         headers: {
             "content-type": req.headers.get("content-type") ?? "application/json",
-            cookie: req.headers.get("cookie") ?? "",
-            accept: "application/json",
         },
         body,
-        cache: "no-store",
     });
 
     const text = await res.text();
@@ -27,10 +21,9 @@ export async function POST(req: NextRequest) {
         },
     });
 
+    // forward JWT cookies (access / refresh) từ backend nếu có
     const setCookie = res.headers.get("set-cookie");
-    if (setCookie) {
-        out.headers.set("set-cookie", setCookie);
-    }
+    if (setCookie) out.headers.set("set-cookie", setCookie);
 
     return out;
 }

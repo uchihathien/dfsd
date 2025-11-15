@@ -1,21 +1,19 @@
-// frontend/lib/api.ts
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
+export const API_BASE =
+    process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
 
-type NextFetchInit = RequestInit & {
-    next?: { revalidate?: number | false; tags?: string[] };
-};
+export const OAUTH_REDIRECT =
+    process.env.NEXT_PUBLIC_OAUTH_REDIRECT ?? "http://localhost:3000/oauth2/callback";
 
-export async function apiFetch<T = unknown>(path: string, init?: NextFetchInit): Promise<T> {
-    const url = new URL(path.startsWith("/") ? path : `/${path}`, API_BASE).toString();
-    const isServer = typeof window === "undefined";
-
-    const { next: nextCfg, ...rest } = init ?? {};
-    const res = await fetch(url, isServer ? { next: nextCfg, ...rest } : rest);
-
-    if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Request failed: ${res.status} ${res.statusText}`);
-    }
-    if (res.status === 204) return undefined as T;
-    return (await res.json()) as T;
+/**
+ * Gọi trực tiếp BACKEND từ BFF (route.ts trên server)
+ */
+export async function backendFetch(
+    path: string,
+    init?: RequestInit
+): Promise<Response> {
+    const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+    return fetch(url, {
+        ...init,
+        // BFF luôn chạy ở server nên không cần credentials
+    });
 }

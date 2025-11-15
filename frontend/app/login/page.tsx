@@ -1,166 +1,127 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import GoogleButton from "@/components/GoogleButton";
 import FacebookButton from "@/components/FacebookButton";
-import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const next = searchParams.get("next") || "/";
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [showPwd, setShowPwd] = useState(false);
+
     const [loading, setLoading] = useState(false);
-    const [err, setErr] = useState("");
+    const [error, setError] = useState<string | null>(null);
 
-    const onSubmit = async (e: React.FormEvent) => {
+    const onSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setErr("");
 
-        if (!email || !password) {
-            setErr("Vui lòng nhập đầy đủ email và mật khẩu");
-            return;
-        }
-
+        setError(null);
         setLoading(true);
 
         try {
             const res = await fetch("/bff/auth/login", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
                 body: JSON.stringify({ email, password }),
             });
 
-            setLoading(false);
+            // Nếu login thất bại
+            if (!res.ok) {
+                let message = "";
+                try {
+                    message = await res.text();
+                } catch (_) {}
 
-            if (res.ok) {
-                await res.text();
-                window.location.href = "/?login=ok";
-            } else {
-                setErr("Email hoặc mật khẩu không đúng");
+                setError(message || "Đăng nhập thất bại");
+                return;
             }
-        } catch (error) {
-            console.error(error);
-            setErr("Lỗi kết nối. Vui lòng thử lại sau.");
+
+            // Login thành công
+            router.push(next);
+            router.refresh();
+
+        } catch (err: any) {
+            setError(err?.message || "Lỗi kết nối server");
+        } finally {
             setLoading(false);
         }
     };
 
-    const inputBox = (children: React.ReactNode) => (
-        <div className="bg-gray-50 border rounded-xl px-4 py-3 flex items-center gap-3 focus-within:ring-2 focus-within:ring-black/30 transition">
-            {children}
-        </div>
-    );
-
     return (
-        <main className="flex justify-center items-center min-h-screen px-4 bg-gradient-to-b from-gray-50 to-gray-100">
-            <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-10 border border-gray-100">
+        <div className="max-w-md mx-auto bg-white rounded shadow p-6 mt-8">
+            <h1 className="text-xl font-semibold mb-5 text-center">
+                Đăng nhập tài khoản
+            </h1>
 
-                {/* TITLE */}
-                <h1 className="text-3xl font-bold text-center mb-3 tracking-tight">
-                    Chào mừng trở lại
-                </h1>
-                <p className="text-center text-gray-600 mb-8">
-                    Đăng nhập để tiếp tục mua sắm nhanh chóng và tiện lợi.
-                </p>
+            <form onSubmit={onSubmit} className="space-y-4">
 
-                {/* FORM */}
-                <form onSubmit={onSubmit} className="space-y-6">
-
-                    {/* EMAIL */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700">Email</label>
-
-                        {inputBox(
-                            <>
-                                <Mail size={20} className="text-gray-500" />
-                                <input
-                                    type="email"
-                                    className="flex-1 bg-transparent outline-none text-gray-700"
-                                    placeholder="email@example.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                />
-                            </>
-                        )}
-                    </div>
-
-                    {/* PASSWORD */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700">Mật khẩu</label>
-
-                        {inputBox(
-                            <>
-                                <Lock size={20} className="text-gray-500" />
-
-                                <input
-                                    type={showPwd ? "text" : "password"}
-                                    className="flex-1 bg-transparent outline-none text-gray-700"
-                                    placeholder="Nhập mật khẩu"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPwd(!showPwd)}
-                                    className="text-gray-500"
-                                >
-                                    {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            </>
-                        )}
-                    </div>
-
-                    {/* ERROR */}
-                    {err && <p className="text-red-600 text-sm text-center">{err}</p>}
-
-                    {/* BUTTON */}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3 rounded-xl text-white font-medium text-lg
-                                   bg-gradient-to-r from-black to-gray-700
-                                   hover:opacity-90 transition flex items-center justify-center gap-2
-                                   disabled:bg-gray-400"
-                    >
-                        {loading && <Loader2 className="animate-spin" size={18} />}
-                        {loading ? "Đang đăng nhập..." : "Đăng nhập"}
-                    </button>
-                </form>
-
-                {/* FORGOT PASSWORD */}
-                <div className="text-center mt-4">
-                    <Link
-                        href="/forgot"
-                        className="text-sm text-gray-700 hover:underline"
-                    >
-                        Quên mật khẩu?
-                    </Link>
+                {/* EMAIL */}
+                <div>
+                    <label className="text-sm font-medium">Email</label>
+                    <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="mt-1 w-full border rounded px-3 py-2 text-sm"
+                        autoComplete="email"
+                        required
+                    />
                 </div>
 
-                {/* OR DIVIDER */}
-                <div className="my-7 flex items-center gap-3">
-                    <hr className="flex-1 border-gray-300" />
-                    <span className="text-gray-500 text-sm">Hoặc</span>
-                    <hr className="flex-1 border-gray-300" />
+                {/* PASSWORD */}
+                <div>
+                    <label className="text-sm font-medium">Mật khẩu</label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="mt-1 w-full border rounded px-3 py-2 text-sm"
+                        autoComplete="current-password"
+                        required
+                    />
                 </div>
 
-                {/* SOCIAL LOGIN */}
-                <div className="space-y-3">
-                    <GoogleButton />
-                    <FacebookButton />
-                </div>
+                {error && (
+                    <p className="text-sm text-red-600 whitespace-pre-wrap">
+                        {error}
+                    </p>
+                )}
 
-                {/* LINK TO REGISTER */}
-                <p className="text-sm text-center mt-6 text-gray-600">
-                    Chưa có tài khoản?{" "}
-                    <Link href="/register" className="text-black font-semibold hover:underline">
-                        Đăng ký ngay
-                    </Link>
-                </p>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-blue-600 text-white rounded py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+                >
+                    {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+                </button>
+            </form>
+
+            {/* Separator */}
+            <div className="my-5 h-px bg-gray-200" />
+
+            <div className="space-y-2">
+                <GoogleButton />
+                <FacebookButton />
             </div>
-        </main>
+
+            <p className="mt-4 text-sm text-center">
+                Chưa có tài khoản?{" "}
+                <Link
+                    href="/register"
+                    className="text-blue-600 hover:underline font-medium"
+                >
+                    Đăng ký
+                </Link>
+            </p>
+        </div>
     );
 }

@@ -1,24 +1,10 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { backendFetch } from "@/lib/api";
 
 export async function GET() {
-
-    const access = (await cookies()).get("access_token")?.value;
-    if (!access) {
-        return NextResponse.json({ message: "NOT_LOGGED_IN" }, { status: 401 });
-    }
-
-    // gọi backend thật
-    const r = await fetch(`${process.env.BACKEND_URL}/api/auth/me`, {
-        headers: {
-            Authorization: `Bearer ${access}`,
-        },
+    const res = await backendFetch("/api/auth/me", {
+        credentials: "include",
     });
 
-    if (!r.ok) {
-        return NextResponse.json({ message: "UNAUTHORIZED" }, { status: 401 });
-    }
-
-    const me = await r.json();
-    return NextResponse.json(me);
+    const data = await res.json();
+    return Response.json(data, { status: res.status });
 }

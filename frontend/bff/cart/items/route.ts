@@ -1,25 +1,22 @@
-// frontend/app/bff/cart/items/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { API_BASE } from "@/lib/api";
+import { backendFetch } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
     const body = await req.text();
 
-    const res = await fetch(`${API_BASE}/api/cart/items`, {
+    const res = await backendFetch("/api/cart/items", {
         method: "POST",
         headers: {
             "content-type": req.headers.get("content-type") ?? "application/json",
             cookie: req.headers.get("cookie") ?? "",
-            accept: "application/json",
         },
         body,
         cache: "no-store",
     });
 
     const text = await res.text();
-
     const out = new NextResponse(text, {
         status: res.status,
         headers: {
@@ -28,9 +25,7 @@ export async function POST(req: NextRequest) {
     });
 
     const setCookie = res.headers.get("set-cookie");
-    if (setCookie) {
-        out.headers.set("set-cookie", setCookie);
-    }
+    if (setCookie) out.headers.set("set-cookie", setCookie);
 
     return out;
 }

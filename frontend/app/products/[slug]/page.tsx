@@ -1,151 +1,77 @@
-// app/products/[slug]/page.tsx
-import { apiFetch } from "@/lib/api";
-import { ProductDetailDto } from "@/types/catalog";
+import { API_BASE } from "@/lib/api";
 import { notFound } from "next/navigation";
-import { AddToCartButton } from "@/components/AddToCartButton";
 
-type Params = { slug: string };
+export default async function ProductDetailPage(props: any) {
+    // 🔥 FIX LỖI: params là Promise → phải await
+    const { slug } = await props.params;
 
-export async function generateMetadata({
-                                           params,
-                                       }: {
-    params: Promise<Params>;
-}) {
-    // Luôn await params trong Next 15/16
-    const { slug } = await params;
+    const res = await fetch(`${API_BASE}/api/products/${slug}`, {
+        cache: "no-store",
+    });
 
-    // Nếu slug rỗng -> metadata tối thiểu, tránh throw làm vỡ build
-    if (!slug) {
-        return { title: "Sản phẩm | Cửa hàng cơ khí" };
-    }
+    if (!res.ok) return notFound();
 
-    // Đừng để throw làm crash metadata
-    try {
-        const p = await apiFetch<ProductDetailDto>(`/api/products/${encodeURIComponent(slug)}`);
-        return {
-            title: `${p.name} | Cửa hàng cơ khí`,
-            description: p.description?.slice(0, 150) ?? "",
-            alternates: { canonical: `/products/${slug}` },
-            openGraph: {
-                title: p.name,
-                description: p.description?.slice(0, 150) ?? "",
-                images: p.thumbnailUrl ? [p.thumbnailUrl] : [],
-            },
-        };
-    } catch {
-        // Khi không fetch được, trả metadata tối thiểu
-        return { title: "Sản phẩm | Cửa hàng cơ khí" };
-    }
-}
+    const p = await res.json();
 
-export default async function ProductDetailPage({
-                                                    params,
-                                                }: {
-    params: Promise<Params>;
-}) {
-    const { slug } = await params;
+    return (
+        <div className="w-full bg-gray-50 py-10">
+            <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-12">
 
-    if (!slug) {
-        notFound();
-    }
-
-    try {
-        const p = await apiFetch<ProductDetailDto>(
-            `/api/products/${encodeURIComponent(slug)}`
-        );
-
-        return (
-            <div className="mx-auto max-w-6xl p-4 md:p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={p.thumbnailUrl || "https://placehold.co/600x400"}
-                            alt={p.name}
-                            className="w-full rounded"
-                        />
-                        <div className="grid grid-cols-4 gap-2 mt-2">
-                            {p.images?.map((img) => (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    key={img.id}
-                                    src={img.url}
-                                    alt=""
-                                    className="w-full h-20 object-cover rounded"
-                                />
-                            ))}
-                        </div>
+                {/* IMAGE */}
+                <div>
+                    <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+                        <img src={p.thumbnailUrl} className="w-full object-cover" />
                     </div>
 
-                    <div>
-                        <h1 className="text-2xl font-semibold">{p.name}</h1>
-                        {p.brandName && (
-                            <div className="text-sm text-gray-500 mt-1">
-                                Thương hiệu: {p.brandName}
+                    <div className="grid grid-cols-5 gap-3 mt-4">
+                        {p.images?.map((img: any) => (
+                            <div key={img.id} className="border rounded-md overflow-hidden">
+                                <img src={img.url} className="w-full h-20 object-cover" />
                             </div>
-                        )}
-                        {p.categoryName && (
-                            <div className="text-sm text-gray-500">
-                                Danh mục: {p.categoryName}
-                            </div>
-                        )}
+                        ))}
+                    </div>
+                </div>
 
-                        <div
-                            className="mt-4 prose max-w-none"
-                            dangerouslySetInnerHTML={{
-                                __html: (p.description ?? "").replace(/\n/g, "<br/>"),
-                            }}
-                        />
+                {/* INFO */}
+                <div className="space-y-6">
+                    <h1 className="text-3xl font-bold">{p.name}</h1>
 
-                        <div className="mt-6">
-                            <h3 className="font-medium mb-2">Các phiên bản (SKU)</h3>
-                            <div className="border rounded divide-y">
-                                {p.variants.map((v) => (
-                                    <div
-                                        key={v.id}
-                                        className="p-3 flex items-center justify-between flex-wrap gap-3"
-                                    >
-                                        <div>
-                                            <div className="font-medium">
-                                                {v.sku}
-                                                {v.isDefault ? " • Mặc định" : ""}
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                {v.sizeText ? `Kích thước: ${v.sizeText} • ` : ""}
-                                                {v.material || ""}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="font-semibold">
-                                                {v.price.toLocaleString("vi-VN")} ₫
-                                            </div>
-                                            <AddToCartButton variantId={v.id} disabled={v.stockQty <= 0} />
-                                        </div>
+                    <div className="inline-block px-3 py-1 bg-gray-200 rounded-full text-sm">
+                        Thương hiệu: <b>{p.brandName}</b>
+                    </div>
+
+                    <div className="space-y-3">
+                        <h2 className="text-xl font-semibold">Các phiên bản</h2>
+
+                        {p.variants?.map((v: any) => (
+                            <div key={v.id} className="border rounded-lg bg-white p-4 shadow-sm">
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div className="font-medium">Mã SKU:</div>
+                                    <div>{v.sku}</div>
+
+                                    <div className="font-medium">Kích thước:</div>
+                                    <div>{v.sizeText}</div>
+
+                                    <div className="font-medium">Giá:</div>
+                                    <div className="text-blue-600 font-bold">
+                                        {v.price.toLocaleString()}₫
                                     </div>
-                                ))}
-                            </div>
-                        </div>
 
-                        {p.datasheetUrl && (
-                            <a
-                                href={p.datasheetUrl}
-                                className="inline-block mt-4 underline"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                Tải datasheet
-                            </a>
-                        )}
+                                    <div className="font-medium">Tồn kho:</div>
+                                    <div>{v.stockQty}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="pt-4 border-t">
+                        <h2 className="text-xl font-semibold mb-2">Mô tả sản phẩm</h2>
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {p.description}
+                        </p>
                     </div>
                 </div>
             </div>
-        );
-    } catch (e: any) {
-        // Nếu backend trả 404 → hiển thị trang 404
-        if (typeof e?.message === "string" && e.message.includes("404")) {
-            notFound();
-        }
-        // Lỗi khác → ném lại để Next hiển thị error overlay dev
-        throw e;
-    }
+        </div>
+    );
 }
