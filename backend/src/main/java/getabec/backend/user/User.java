@@ -21,6 +21,7 @@ public class User {
     private String status = "ACTIVE";
     private Instant createdAt = Instant.now();
     private Instant updatedAt = Instant.now();
+
 }
 
 

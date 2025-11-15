@@ -4,6 +4,8 @@ import getabec.backend.auth.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -12,7 +14,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-// config/SecurityConfig.java
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -22,18 +23,39 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
-                .cors(cors -> {})
+
+        http
+                .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/**",            // public auth endpoints
-                                "/api/products/**"         // public product browse
+                        // Public catalog APIs
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/products/**",
+                                "/api/categories/**",
+                                "/api/brands/**",
+                                "/api/cart"
                         ).permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // Cart APIs that don't require login
+                        .requestMatchers(HttpMethod.POST, "/api/cart/items").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/cart/items/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/cart/items/**").permitAll()
+
+                        // Public auth endpoints
+                        .requestMatchers("/api/auth/**", "/api/oauth/**", "/api/password/**").permitAll()
+
+                        // Static / docs
+                        .requestMatchers("/", "/error", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+
+                        // Everything else requires auth
                         .anyRequest().authenticated()
                 )
+
+                // JWT filter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
