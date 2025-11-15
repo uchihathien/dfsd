@@ -1,23 +1,32 @@
 package getabec.backend.auth;
 
+import getabec.backend.auth.dto.AuthResponse;
 import getabec.backend.auth.dto.LoginRequest;
 import getabec.backend.auth.dto.RegisterRequest;
 import getabec.backend.auth.dto.TokenResponse;
+import getabec.backend.auth.dto.UserResponse;
+import getabec.backend.cart.dto.CartDto;
+import getabec.backend.cart.service.CartService;
 import getabec.backend.common.ex.EmailExistsException;
 import getabec.backend.common.ex.InvalidCredentialsException;
 import getabec.backend.common.ex.WeakPasswordException;
 import getabec.backend.user.User;
 import getabec.backend.user.UserRepository;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.UUID;
 
 // auth/AuthService.java
 @Service
@@ -25,19 +34,19 @@ import java.util.List;
 public class AuthService {
     private final UserRepository userRepo;
     private final PasswordEncoder encoder;
-    private final JwtService jwt;
+    private final JwtUtil jwtUtil;
     private final PasswordPolicy passwordPolicy;
-
+    private final AuthenticationManager authenticationManager;
+    private final UserDetailsService userDetailsService;
+    private final CartService cartService;
 
     public TokenResponse register(RegisterRequest r) {
         String email = r.email().trim().toLowerCase();
 
-        // kiểm tra email đã đăng ký
         if (userRepo.findByEmail(email).isPresent()) {
             throw new EmailExistsException();
         }
 
-        // kiểm tra độ mạnh mật khẩu (ngoài @Size, @NotBlank)
         var pwErrors = passwordPolicy.validate(r.password());
         if (!pwErrors.isEmpty()) {
             throw new WeakPasswordException(pwErrors);
@@ -51,48 +60,62 @@ public class AuthService {
         try {
             userRepo.save(u);
         } catch (DataIntegrityViolationException ex) {
-            // phòng trường hợp race, unique index trên email vẫn đảm bảo
             throw new EmailExistsException();
         }
 
         var ud = new org.springframework.security.core.userdetails.User(
-                u.getEmail(), "", List.of(new SimpleGrantedAuthority("ROLE_"+u.getRole()))
+                u.getEmail(), "", List.of(new SimpleGrantedAuthority("ROLE_" + u.getRole()))
         );
-        return new TokenResponse(jwt.generateAccessToken(ud), jwt.generateRefreshToken(ud));
+        return new TokenResponse(jwtUtil.generateAccessToken(ud), jwtUtil.generateRefreshToken(ud));
     }
 
-    public TokenResponse login(LoginRequest r) {
-        var u = userRepo.findByEmail(r.email().toLowerCase())
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS")
-                );
+    public AuthResponse login(LoginRequest r, UUID guestCartId) {
+        String email = r.email().trim().toLowerCase();
 
-        if (u.getPassword() == null || !encoder.matches(r.password(), u.getPassword())) {
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, r.password())
+            );
+        } catch (AuthenticationException ex) {
             throw new InvalidCredentialsException();
         }
 
-        return tokensFor(u.getEmail());
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS"));
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        TokenResponse tokens = tokensFor(userDetails);
+
+        CartDto cart = (guestCartId != null)
+                ? cartService.attachOrMerge(guestCartId, user.getId())
+                : cartService.getOrCreateForUser(user.getId());
+
+        return new AuthResponse(
+                tokens.accessToken(),
+                tokens.refreshToken(),
+                UserResponse.from(user),
+                cart.getId().toString()
+        );
     }
 
-
     public TokenResponse refresh(String refreshToken) {
-        String email = jwt.extractUsername(refreshToken);
+        if (!jwtUtil.isRefreshToken(refreshToken)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN");
+        }
+        String email = jwtUtil.extractUsername(refreshToken);
         return tokensFor(email);
     }
 
     private TokenResponse tokensFor(String email) {
-        var ud = new org.springframework.security.core.userdetails.User(email, "", List.of(new SimpleGrantedAuthority("ROLE_USER")));
-        return new TokenResponse(jwt.generateAccessToken(ud), jwt.generateRefreshToken(ud));
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        return tokensFor(userDetails);
     }
 
-    private String dummyHash;
-
-    @PostConstruct
-    void initDummy() {
-        // Tạo 1 hash hợp lệ khi khởi động (salt random) -> dùng cho matches() khi user không tồn tại
-        this.dummyHash = encoder.encode("Dummy#12345");
+    private TokenResponse tokensFor(UserDetails userDetails) {
+        return new TokenResponse(
+                jwtUtil.generateAccessToken(userDetails),
+                jwtUtil.generateRefreshToken(userDetails)
+        );
     }
-
-
 
 }

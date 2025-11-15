@@ -5,8 +5,8 @@ import { headers } from "next/headers";
 type Me = {
     id: number;
     email: string;
-    fullName?: string;
-    role?: string;
+    fullName?: string | null;
+    role?: string | null;
 };
 
 async function fetchMe(): Promise<Me | null> {
