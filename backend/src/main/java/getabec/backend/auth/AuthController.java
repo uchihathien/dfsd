@@ -23,8 +23,6 @@ public class AuthController {
 
     @PostMapping("/register")
     public TokenResponse register(@Valid @RequestBody RegisterRequest req) {
-        System.out.println(">>> [AuthController] /api/auth/register CALLED, email=" );
-
         return authService.register(req);
     }
 
