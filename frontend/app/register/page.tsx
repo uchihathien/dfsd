@@ -28,8 +28,22 @@ export default function RegisterPage() {
                 body: JSON.stringify({ email, password, fullName }),
             });
             if (!res.ok) {
-                const msg = await res.text().catch(() => "");
-                setError(msg || "Đăng ký thất bại");
+                const text = await res.text().catch(() => "");
+                try {
+                    const payload = text ? (JSON.parse(text) as any) : null;
+                    if (payload?.details) {
+                        const details = Array.isArray(payload.details)
+                            ? payload.details.join("\n")
+                            : String(payload.details);
+                        setError(details);
+                    } else if (payload?.error) {
+                        setError(String(payload.error));
+                    } else {
+                        setError("Đăng ký thất bại");
+                    }
+                } catch {
+                    setError(text || "Đăng ký thất bại");
+                }
             } else {
                 // sau đăng ký chuyển sang login
                 router.push("/login");

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
+import { API_BASE } from "@/lib/api";
 
 export async function POST(req: Request) {
-    console.log("BACKEND_URL =", process.env.BACKEND_URL);
-    console.log("FULL URL =", `${process.env.BACKEND_URL}/api/auth/register`);
     try {
         const body = await req.json();
 
-        const r = await fetch(`${process.env.BACKEND_URL}/api/auth/register`, {
+        const r = await fetch(`${API_BASE}/auth/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
@@ -28,7 +27,8 @@ export async function POST(req: Request) {
             const access = data.accessToken;
             const refresh = data.refreshToken;
 
-            const res = NextResponse.json({ success: true });
+            const res = NextResponse.json({ success: true, user: data.user ?? null });
+            const secure = process.env.NODE_ENV === "production";
 
             // Set cookie
             res.cookies.set("access_token", access, {
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
                 sameSite: "lax",
                 path: "/",
                 maxAge: 60 * 15,
+                secure,
             });
 
             res.cookies.set("refresh_token", refresh, {
@@ -43,7 +44,18 @@ export async function POST(req: Request) {
                 sameSite: "lax",
                 path: "/",
                 maxAge: 60 * 60 * 24 * 7,
+                secure,
             });
+
+            if (data.cartId) {
+                res.cookies.set("cart_id", data.cartId, {
+                    httpOnly: true,
+                    sameSite: "lax",
+                    path: "/",
+                    maxAge: 60 * 60 * 24 * 30,
+                    secure,
+                });
+            }
 
             return res;
         }

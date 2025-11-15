@@ -6,8 +6,8 @@ import { useTransition, useState } from "react";
 type Me = {
     id: number;
     email: string;
-    fullName?: string;
-    role?: string;
+    fullName?: string | null;
+    role?: string | null;
 } | null;
 
 export default function AuthStatus({ me }: { me: Me }) {
@@ -43,10 +43,12 @@ export default function AuthStatus({ me }: { me: Me }) {
         );
     }
 
+    const displayName = me.fullName && me.fullName.trim().length > 0 ? me.fullName : me.email;
+
     return (
         <div className="flex flex-col items-end gap-1 text-sm">
             <div>
-                Xin chào, <span className="font-medium">{me.fullName ?? me.email}</span>
+                Xin chào, <span className="font-medium">{displayName}</span>
             </div>
             <button
                 onClick={handleLogout}

@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { backendFetch } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 
 const ONE_HOUR = 60 * 60;
 const SEVEN_DAYS = 60 * 60 * 24 * 7;
+const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
 type LoginSuccess = {
     accessToken: string;
     refreshToken: string;
-    user?: unknown;
+    user?: {
+        id: number;
+        email: string;
+        fullName?: string | null;
+        role?: string | null;
+    };
+    cartId?: string;
 };
 
 type LoginError = {
@@ -36,9 +43,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
-    const backendRes = await backendFetch("/auth/login", {
+    const backendRes = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            cookie: req.headers.get("cookie") ?? "",
+        },
         body: JSON.stringify(body ?? {}),
         cache: "no-store",
     });
@@ -78,6 +88,16 @@ export async function POST(req: NextRequest) {
         maxAge: SEVEN_DAYS,
         path: "/",
     });
+
+    if (parsed.cartId) {
+        res.cookies.set("cart_id", parsed.cartId, {
+            httpOnly: true,
+            sameSite: "lax",
+            secure,
+            maxAge: THIRTY_DAYS,
+            path: "/",
+        });
+    }
 
     return res;
 }

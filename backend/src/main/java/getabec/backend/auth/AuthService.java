@@ -5,6 +5,8 @@ import getabec.backend.auth.dto.LoginRequest;
 import getabec.backend.auth.dto.RegisterRequest;
 import getabec.backend.auth.dto.TokenResponse;
 import getabec.backend.auth.dto.UserResponse;
+import getabec.backend.cart.dto.CartDto;
+import getabec.backend.cart.service.CartService;
 import getabec.backend.common.ex.EmailExistsException;
 import getabec.backend.common.ex.InvalidCredentialsException;
 import getabec.backend.common.ex.WeakPasswordException;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.UUID;
 
 // auth/AuthService.java
 @Service
@@ -35,6 +38,7 @@ public class AuthService {
     private final PasswordPolicy passwordPolicy;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
+    private final CartService cartService;
 
     public TokenResponse register(RegisterRequest r) {
         String email = r.email().trim().toLowerCase();
@@ -65,7 +69,7 @@ public class AuthService {
         return new TokenResponse(jwtUtil.generateAccessToken(ud), jwtUtil.generateRefreshToken(ud));
     }
 
-    public AuthResponse login(LoginRequest r) {
+    public AuthResponse login(LoginRequest r, UUID guestCartId) {
         String email = r.email().trim().toLowerCase();
 
         try {
@@ -82,7 +86,16 @@ public class AuthService {
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
         TokenResponse tokens = tokensFor(userDetails);
 
-        return new AuthResponse(tokens.accessToken(), tokens.refreshToken(), UserResponse.from(user));
+        CartDto cart = (guestCartId != null)
+                ? cartService.attachOrMerge(guestCartId, user.getId())
+                : cartService.getOrCreateForUser(user.getId());
+
+        return new AuthResponse(
+                tokens.accessToken(),
+                tokens.refreshToken(),
+                UserResponse.from(user),
+                cart.getId().toString()
+        );
     }
 
     public TokenResponse refresh(String refreshToken) {
