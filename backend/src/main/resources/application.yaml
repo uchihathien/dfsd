@@ -35,7 +35,7 @@ mail:
 
 oauth:
   google:
-    client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+    client-id: 291524218840-ktqcbq7mnl81ifmcbdksdn6ag0petmfs.apps.googleusercontent.com
   facebook:
     app-id: ${FB_APP_ID:your-facebook-app-id}
     app-secret: ${FB_APP_SECRET:your-facebook-app-secret}
